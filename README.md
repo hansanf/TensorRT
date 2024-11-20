@@ -1,3 +1,31 @@
+# build & run
+	```bash
+	git submodule update --init --recursive
+  
+  打 onnx 库的 patch：在onnx 中对 trt 算子和 onnx.model 中的 torch 算子进行绑定；onnx 算子不需要实现
+  cd parsers/onnx & git apply ../../onnx.patch
+
+  cmake -Bbuild -DTRT_LIB_DIR=/usr/local/TensorRT-8.6.1.6/lib
+  make -j12
+
+  python custom_torch_plugin/custom_gelu.py
+
+  cd build
+  export LD_LIBRARY_PATH=.:/usr/local/TensorRT-8.6.1.6/lib:$LD_LIBRARY_PATH
+
+  测试 onnx 模型
+  ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx
+  onnx 模型转为 trt 模型
+  ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx --fp16 --saveEngine=custom_gelu.trt
+  测试 trt 模型
+  ./trtexec --loadEngine=custom_gelu.trt
+
+  调用 trt api 推理
+  env LD_PRELOAD=libnvinfer_plugin.so ./infer/model_infer ./custom_gelu.trt
+	```
+
+
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Documentation](https://img.shields.io/badge/TensorRT-documentation-brightgreen.svg)](https://docs.nvidia.com/deeplearning/sdk/tensorrt-developer-guide/index.html)
 
 # TensorRT Open Source Software

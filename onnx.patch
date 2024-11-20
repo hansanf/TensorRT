@@ -1,0 +1,79 @@
+diff --git a/builtin_op_importers.cpp b/builtin_op_importers.cpp
+index 52cb248..0a7c771 100644
+--- a/builtin_op_importers.cpp
++++ b/builtin_op_importers.cpp
+@@ -5860,6 +5860,74 @@ DEFINE_BUILTIN_OP_IMPORTER(TRT_AveragePool)
+     return importAveragePool(ctx, node, inputs);
+ }
+ 
++
++// https://blog.csdn.net/weixin_45878768/article/details/128149343
++//这是一个宏，展开后本质是一个函数定义，该函数的形参有ctx, node, inputs
++DEFINE_BUILTIN_OP_IMPORTER(MyGelu)
++{   
++
++    //一个简单的断言
++    ASSERT(inputs.at(0).is_tensor(), ErrorCode::kUNSUPPORTED_NODE);
++    
++    //取出输入的tensor
++    nvinfer1::ITensor* tensor = &inputs.at(0).tensor();
++    
++	//获得该onnx节点的属性
++    OnnxAttrs attrs(node, ctx);
++    
++    //本博客该代码没有实际意义，只是示意如何从onnx节点中读取出定义在节点内的常数或张量权重的方法。
++    //用来将模型中 attributes 传递给 trt 中的算子
++    float add_num = attrs.get<float>("add_num");
++    
++    //取得plugin注册表
++    // auto regis = getPluginRegistry();
++    
++	  //取得对应的plugin
++    nvinfer1::IPluginCreator* gelu_creator = getPluginRegistry()->getPluginCreator("CustomGeluPluginDynamic", "1");
++    
++    //一些对plugin属性的描述，用于传入creator创建出一个具体的plugin实例
++    //一个plugin具体有哪些属性是在定义时决定的，在这里这么写只是为了符合nvidia定义的gelu的属性，对于读者自己写的plugin
++    //自身肯定知道应该传入什么PluginFieldCollection字段信息。
++    nvinfer1::PluginFieldCollection plugInFC;
++    nvinfer1::PluginField* pf = new nvinfer1::PluginField[2];
++    int p_int = 0;
++    pf[0].name = "type_id";
++    pf[0].length = 1;
++    pf[0].type = nvinfer1::PluginFieldType::kINT32;
++    pf[0].data = &p_int;
++
++    nvinfer1::PluginField* pf2 = new nvinfer1::PluginField();
++    // trt 算子要求的一些输出参数，可以通过 PluginFieldCollection 进行传递
++    // add_num 是 model 中的一个输入参数，被固定到了 onnx model 中，在 onnx model中被称为 attribute，其作为参数传递给trt 算子
++    float bias = add_num;
++    pf[1].name = "bias";
++    pf[1].length = 1;
++    pf[1].type = nvinfer1::PluginFieldType::kFLOAT32;
++    pf[1].data = &bias;
++
++    plugInFC.nbFields = 2;
++    plugInFC.fields = pf;
++    
++    //创建一个具体的tensorrt plugin节点
++    nvinfer1::IPluginV2* gelu_plugin_obj = gelu_creator->createPlugin("gelu1", &plugInFC);
++    
++	//将该结点加入到已有的网络当中
++    nvinfer1::IPluginV2Layer* gelu_layer = ctx->network()->addPluginV2(&tensor, 1, *gelu_plugin_obj);
++    
++	//获得该层的输出，因为已经知道只有一个输出，直接取0号索引即可
++    nvinfer1::ITensor* output = gelu_layer->getOutput(0);
++    
++	//本函数输出的结构体为NodeImportResult，对输出的tensor进行一些简单的结构体包装即可。
++    std::vector<TensorOrWeights> vec_out;
++    vec_out.push_back(TensorOrWeights(output));
++    NodeImportResult res(vec_out);
++    delete[] pf;
++
++    return res;
++}
++
++
++
+ } // namespace
+ 
+ } // namespace onnx2trt

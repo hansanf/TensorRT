@@ -341,11 +341,11 @@ IPluginV2* GeluPluginDynamicCreator::createPlugin(char const* name, PluginFieldC
         {
             PLUGIN_VALIDATE(fc->fields[i].name != nullptr);
             std::string fieldName(fc->fields[i].name);
-
             if (fieldName.compare("type_id") == 0)
             {
                 typeId = *static_cast<int32_t const*>(fc->fields[i].data);
             }
+            // onnx 模型中的 attributes, 因为
             if (fieldName.compare("bias") == 0)
             {
                 bias.values = fc->fields[i].data;

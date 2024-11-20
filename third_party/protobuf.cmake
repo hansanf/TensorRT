@@ -21,6 +21,8 @@ include(ExternalProject)
 macro(configure_protobuf VERSION)
     set(protobufPackage "protobuf-cpp-${VERSION}.tar.gz")
     set(Protobuf_PKG_URL "https://github.com/google/protobuf/releases/download/v${VERSION}/${protobufPackage}")
+    # 网络问题下载不了的时候可以先手动下载tgz包，然后在下面指定本地路径
+    # set(Protobuf_PKG_URL "/home/xx/protobuf-cpp-3.20.1.tar.gz")
     set(Protobuf_INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR})
     set(Protobuf_TARGET third_party.protobuf)
 
