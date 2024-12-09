@@ -68,6 +68,12 @@ void doInference(IExecutionContext& context, float* input, float* output, const 
     CHECK(cudaFree(buffers[outputIndex]));
 }
 
+bool isDynamic(Dims const& m) {
+  bool b = m.nbDims <= 0;
+  for (int i = 0; !b && (i < m.nbDims); ++i) b = m.d[i] < 0;
+  return b;
+}
+
 int main(int argc, char** argv) {
     cudaSetDevice(DEVICE);
     // create a model using the API directly and serialize it to a stream
@@ -93,21 +99,43 @@ int main(int argc, char** argv) {
     IExecutionContext* context = engine->createExecutionContext();
     assert(context != nullptr);
     delete[] trtModelStream;
-    auto out_dims = engine->getBindingDimensions(1);
+
+    const int inputIndex = engine->getBindingIndex(INPUT_BLOB_NAME);
+    auto in_dims = engine->getBindingDimensions(inputIndex);
+    printf("input is dynamic shape: %d\n", isDynamic(in_dims));
+    if (isDynamic(in_dims)) {
+      using Opt = nvinfer1::OptProfileSelector;
+      int nb_binding = engine->getNbBindings();
+      int nb_profile = engine->getNbOptimizationProfiles();
+      int bPerProfile = nb_binding / nb_profile;
+      int ip = 0 / bPerProfile;
+      in_dims = engine->getProfileDimensions(0, ip, Opt::kMAX);
+      context->setBindingDimensions(0, in_dims);
+      assert(context->allInputShapesSpecified() == true);
+      assert(context->allInputDimensionsSpecified() == true);
+    }
+    auto in_size = 1;
+    for (int j=0;j<in_dims.nbDims;j++) {
+        std::cout << "in dim " << j << ": " << in_dims.d[j] << std::endl;
+        in_size *= in_dims.d[j];
+    }
+    std::cout << "in_size: " << in_size << std::endl; 
+
+    // dynamic input 的 shape 被set 后，output shape 也会自动被计算
+    // 注意，这里只能用 context->getBindingDimensions, 当用 engine->getBindingDimensions 时返回的还是未被计算的 dynamic output shape
+    const int outputIndex = engine->getBindingIndex(OUTPUT_BLOB_NAME);
+    auto out_dims = context->getBindingDimensions(outputIndex);
+    printf("output is dynamic shape: %d\n", isDynamic(out_dims));
+    // output 不能是 dynamic shape
+    assert(isDynamic(out_dims) == false);
     auto output_size = 1;
     for(int j=0;j<out_dims.nbDims;j++) {
+        std::cout << "out dim " << j << ": " << out_dims.d[j] << std::endl;
         output_size *= out_dims.d[j];
     }
     std::cout << "output_size: " << output_size << std::endl; 
     static float* prob = new float[output_size];
 
-    auto in_dims = engine->getBindingDimensions(0);
-    auto in_size = 1;
-    for (int j=0;j<in_dims.nbDims;j++) {
-        std::cout << "in dim " << j << ": " << out_dims.d[j] << std::endl;
-        in_size *= out_dims.d[j];
-    }
-    std::cout << "in_size: " << in_size << std::endl; 
     float* blob = new float[in_size];
     for(int j=0;j<in_size;j++) {
       blob[j] = 1.0;

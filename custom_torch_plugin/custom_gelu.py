@@ -27,15 +27,26 @@ class TwoMyGelu(nn.Module):
 
 if __name__ == "__main__":
 	model = TwoMyGelu()
-	x = torch.full((3,4), 1.0)
+	# (batch_size, channel_size, height, width)
+	x = torch.full((1,3,4,5), 1.0).reshape(-1, 3,4,5)
 	print(f"input : {x}")
 	out = model(x)
 	print(f"model out: {out}")
+
+	input_name = "xx_input"
+	output_name = "xx_output"
+	# 动态shape 输入/输出	
+	# dynamic_axes = {input_name: {0: 'batch_size', 2: 'input_height', 3: 'input_width'}}
+  # 只需要指定 input 为 dynamic, output是根据input 自动推算的
+	dynamic_axes = {input_name: {0: 'batch_size'}}									
+	print(f"dynamic_axes: {dynamic_axes}")
 	with torch.no_grad():
 		torch.onnx.export(
 				model,
 				x,
 				"custom_gelu.onnx",
 				opset_version=11,
-				input_names=['xx_input'],
-				output_names=['xx_output'])
+				input_names=[input_name],
+				output_names=[output_name],
+				dynamic_axes=dynamic_axes
+		)

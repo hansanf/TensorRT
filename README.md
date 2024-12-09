@@ -15,10 +15,17 @@
 
   测试 onnx 模型
   ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx
+  
   onnx 模型转为 trt 模型
-  ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx --fp16 --saveEngine=custom_gelu.trt
+  ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx --fp16  --buildOnly --saveEngine=custom_gelu.trt
+  
+  onnx 模型转为 trt 模型，带有dynamic shape 的 input/output
+  ./trtexec --onnx=../custom_torch_plugin/custom_gelu.onnx --fp16 --saveEngine=custom_gelu.trt --buildOnly --minShapes=xx_input:1x3x4x5 --optShapes=xx_input:2x3x4x5 --maxShapes=xx_input:3x3x4x5
+
   测试 trt 模型
   ./trtexec --loadEngine=custom_gelu.trt
+
+
 
   调用 trt api 推理
   env LD_PRELOAD=libnvinfer_plugin.so ./infer/model_infer ./custom_gelu.trt
