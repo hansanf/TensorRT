@@ -108,9 +108,10 @@ int main(int argc, char** argv) {
       int nb_binding = engine->getNbBindings();
       int nb_profile = engine->getNbOptimizationProfiles();
       int bPerProfile = nb_binding / nb_profile;
-      int ip = 0 / bPerProfile;
-      in_dims = engine->getProfileDimensions(0, ip, Opt::kMAX);
-      context->setBindingDimensions(0, in_dims);
+      int ip = inputIndex / bPerProfile;
+      std::cout << "nb binding: " << nb_binding << " nb profile: " << nb_profile << " ip: " << ip << std::endl;
+      in_dims = engine->getProfileDimensions(inputIndex, ip, Opt::kMAX);
+      context->setBindingDimensions(inputIndex, in_dims);
       assert(context->allInputShapesSpecified() == true);
       assert(context->allInputDimensionsSpecified() == true);
     }
@@ -149,9 +150,11 @@ int main(int argc, char** argv) {
     doInference(*context, blob, prob, output_size, in_size);
     auto end = std::chrono::system_clock::now();
     std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-    for(int j=0;j<output_size;j++) {
-      std::cout << prob[j] << std::endl;
-    }
+
+    // print output
+    // for(int j=0;j<output_size;j++) {
+    //   std::cout << prob[j] << std::endl;
+    // }
 
     // delete the pointer to the float
     delete[] blob;

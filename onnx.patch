@@ -1,8 +1,8 @@
 diff --git a/builtin_op_importers.cpp b/builtin_op_importers.cpp
-index 52cb248..0a7c771 100644
+index 52cb248..fd93927 100644
 --- a/builtin_op_importers.cpp
 +++ b/builtin_op_importers.cpp
-@@ -5860,6 +5860,74 @@ DEFINE_BUILTIN_OP_IMPORTER(TRT_AveragePool)
+@@ -5860,6 +5860,124 @@ DEFINE_BUILTIN_OP_IMPORTER(TRT_AveragePool)
      return importAveragePool(ctx, node, inputs);
  }
  
@@ -72,7 +72,57 @@ index 52cb248..0a7c771 100644
 +    return res;
 +}
 +
++DEFINE_BUILTIN_OP_IMPORTER(MyAdd)
++{   
 +
++    //一个简单的断言
++    ASSERT(inputs.at(0).is_tensor(), ErrorCode::kUNSUPPORTED_NODE);
++    
++    //取出输入的tensor
++    // nvinfer1::ITensor* tensor = &inputs.at(0).tensor();
++    //取出输入的tensor
++    nvinfer1::ITensor* tensor[2];
++    tensor[0] = &inputs.at(0).tensor();
++    tensor[1] = &inputs.at(1).tensor();
++	//获得该onnx节点的属性
++    OnnxAttrs attrs(node, ctx);
++    
++    //取得plugin注册表
++    // auto regis = getPluginRegistry();
++	  //取得对应的plugin 
++    nvinfer1::IPluginCreator* gelu_creator = getPluginRegistry()->getPluginCreator("CustomAddPluginDynamic", "1");
++    
++    //一些对plugin属性的描述，用于传入creator创建出一个具体的plugin实例
++    //一个plugin具体有哪些属性是在定义时决定的，在这里这么写只是为了符合nvidia定义的gelu的属性，对于读者自己写的plugin
++    //自身肯定知道应该传入什么PluginFieldCollection字段信息。
++    nvinfer1::PluginFieldCollection plugInFC;
++    nvinfer1::PluginField* pf = new nvinfer1::PluginField[1];
++    int p_int = 0;
++    pf[0].name = "type_id";
++    pf[0].length = 1;
++    pf[0].type = nvinfer1::PluginFieldType::kINT32;
++    pf[0].data = &p_int;
++
++    plugInFC.nbFields = 1;
++    plugInFC.fields = pf;
++    
++    //创建一个具体的tensorrt plugin节点
++    nvinfer1::IPluginV2* gelu_plugin_obj = gelu_creator->createPlugin("add2", &plugInFC);
++    
++	//将该结点加入到已有的网络当中
++    nvinfer1::IPluginV2Layer* gelu_layer = ctx->network()->addPluginV2(tensor, 2, *gelu_plugin_obj);
++    
++	//获得该层的输出，因为已经知道只有一个输出，直接取0号索引即可
++    nvinfer1::ITensor* output = gelu_layer->getOutput(0);
++    
++	//本函数输出的结构体为NodeImportResult，对输出的tensor进行一些简单的结构体包装即可。
++    std::vector<TensorOrWeights> vec_out;
++    vec_out.push_back(TensorOrWeights(output));
++    NodeImportResult res(vec_out);
++    delete[] pf;
++
++    return res;
++}
 +
  } // namespace
  

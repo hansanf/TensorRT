@@ -345,7 +345,7 @@ IPluginV2* GeluPluginDynamicCreator::createPlugin(char const* name, PluginFieldC
             {
                 typeId = *static_cast<int32_t const*>(fc->fields[i].data);
             }
-            // onnx 模型中的 attributes, 因为
+            // onnx 模型中的 attributes, filedName在 builtin_op_importers.cpp中进行定义
             if (fieldName.compare("bias") == 0)
             {
                 bias.values = fc->fields[i].data;
